@@ -1,0 +1,14 @@
+﻿هذا مشروع مصدر C#، وليس برنامج EXE جاهزاً.
+
+لفتحه على جهاز ويندوز:
+1. فك ضغط الملف كاملاً؛ لا تفتح الحل داخل ملف ZIP.
+2. ثبّت Visual Studio 2022 مع .NET desktop development، وSQL Server Express وSSMS.
+3. نفّذ database/Setup.sql مرة واحدة من SSMS.
+4. افتح SupermarketAccounting.sln داخل Visual Studio، ثم اضغط F5.
+5. اضبط اسم خادم SQL Server من زر إعداد الاتصال.
+
+إذا كان .NET 8 SDK مثبتاً، شغّل Build-and-Run.cmd من المجلد بعد فك الضغط.
+إذا ظهرت مشكلة، أرسل نص الخطأ مع تحديد الخطوة.
+
+تفاصيل كاملة في README.md.
+لم يتم اختبار بناء المشروع أو تشغيله فعلياً بعد.
