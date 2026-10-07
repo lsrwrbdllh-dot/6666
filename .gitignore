@@ -3,3 +3,11 @@
 .vs/
 *.user
 *.bak
+*.keystore
+*.jks
+*.pfx
+*.apk
+*.aab
+.env
+.env.*
+appsettings.Local.json

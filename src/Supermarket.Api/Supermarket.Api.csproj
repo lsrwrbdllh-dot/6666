@@ -1,0 +1,4 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+<PropertyGroup><TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><UserSecretsId>supermarket-accounting-api-local-dev</UserSecretsId></PropertyGroup>
+<ItemGroup><PackageReference Include="Microsoft.Data.SqlClient" Version="6.1.1"/><ProjectReference Include="../Supermarket.Contracts/Supermarket.Contracts.csproj"/></ItemGroup>
+</Project>

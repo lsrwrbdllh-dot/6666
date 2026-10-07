@@ -1,0 +1,5 @@
+<Solution>
+ <Project Path="src/Supermarket.Contracts/Supermarket.Contracts.csproj" />
+ <Project Path="src/Supermarket.Api/Supermarket.Api.csproj" />
+ <Project Path="mobile/Supermarket.Android/Supermarket.Android.csproj" />
+</Solution>
