@@ -2,6 +2,8 @@
 
 تطبيق C# / .NET MAUI لأندرويد 8 أو أحدث، مع خادم ASP.NET Core وSQL Server. يستخدم الهاتف نفس قاعدة وإجراءات نسخة ويندوز. لا يحتاج الهاتف SQL Server؛ يحتاج إلى تشغيل API على جهاز المتجر أو خادم يستطيع الوصول إلى القاعدة.
 
+نسخ APK والخادم ونتائج الاختبارات متاحة في [صفحة البناء](https://github.com/lsrwrbdllh-dot/6666/actions/runs/37550599597)؛ تفاصيلها في [حالة البناء](../BUILD-STATUS.md).
+
 ## الشاشات المتوفرة
 
 الملخص، المنتجات والمخزون وحد المخزون، العملاء والموردون وأرصدة الأطراف، فواتير البيع والشراء، المصروفات وتمويل الصندوق والتحصيل والسداد، سجل العمليات والتفاصيل، ميزان المراجعة وقائمة الدخل ودفتر اليومية، ومشاركة الفواتير والتقارير CSV.
@@ -49,7 +51,7 @@ dotnet publish mobile/Supermarket.Android -c Debug -p:AndroidPackageFormats=apk
 
 ## GitHub Actions
 
-`Android and accounting checks` يبني API وملفات APK، ويشغّل اختبارات محاسبية وHTTP على SQL Server تجريبي منفصل. بعد نجاح التشغيل افتح Actions ثم التشغيل ثم Artifacts. الحزمة `supermarket-android-debug` لتجربة LAN، و`supermarket-android-https` لاتصال HTTPS، و`supermarket-api` لملفات الخادم. تحتاج تفعيل Actions في المستودع إن كانت معطّلة. كلمة المرور والمفتاح الظاهران في workflow لقاعدة الاختبار المؤقتة فقط؛ ليست أسرار تشغيل فعلي.
+`Android and accounting checks` يبني API وملفات APK، ويشغّل اختبارات محاسبية وHTTP على SQL Server تجريبي منفصل. بعد نجاح التشغيل افتح Actions ثم التشغيل ثم Artifacts. الحزمة `supermarket-android-debug` لتجربة LAN، و`supermarket-android-https` لاتصال HTTPS، و`supermarket-api` لملفات الخادم، و`supermarket-windows` للنسخة الأصلية. تحتاج تفعيل Actions في المستودع إن كانت معطّلة. كلمة المرور والمفتاح الظاهران في workflow لقاعدة الاختبار المؤقتة فقط؛ ليست أسرار تشغيل فعلي.
 
 ## انقطاع الاتصال
 
