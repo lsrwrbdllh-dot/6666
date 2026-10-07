@@ -42,7 +42,7 @@ try:
     manifest = subprocess.check_output([str(aapt),'dump','xmltree',str(apks[0]),'--file','AndroidManifest.xml'],text=True)
     (out/'manifest.txt').write_text(manifest,encoding='utf-8')
     # Android 15's package dump omits this flag; inspect the packaged manifest.
-    assert re.search(r'android:usesCleartextTraffic[^=\n]*=.*0xffffffff',manifest), 'LAN development APK still blocks HTTP.'
+    assert re.search(r'android:usesCleartextTraffic[^=\n]*=.*(?:\btrue\b|0xffffffff)',manifest), 'LAN development APK still blocks HTTP.'
     print('PASS: development APK allows LAN HTTP traffic.')
 finally:
     (out/'logcat.txt').write_text(adb('logcat','-d',check=False),encoding='utf-8')
