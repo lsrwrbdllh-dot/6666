@@ -76,3 +76,31 @@ jobs:
         with:
           name: supermarket-windows
           path: artifacts/windows
+  android-launch:
+    runs-on: ubuntu-latest
+    needs: android
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: supermarket-android-debug
+          path: artifacts/android
+      - name: Enable emulator acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Launch APK on Android emulator and inspect first-run settings
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          profile: pixel_6
+          disable-animations: true
+          script: python3 tests/android_launch.py artifacts/android
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-launch-diagnostics
+          path: artifacts/android-launch

@@ -57,6 +57,7 @@ public sealed class RootPage : Shell
   Add("الملخص",()=>new SummaryPage());Add("المنتجات والمخزون",()=>new ProductsPage());Add("العملاء والموردون",()=>new PartiesPage());
   Add("فاتورة بيع",()=>new InvoicePage("Sale"));Add("فاتورة شراء",()=>new InvoicePage("Purchase"));Add("الصندوق",()=>new CashPage());
   Add("سجل العمليات",()=>new DocumentsPage());Add("التقارير",()=>new ReportsPage());Add("إعداد الاتصال",()=>new SettingsPage());
+  if(string.IsNullOrWhiteSpace(Preferences.Default.Get("api-url","")))CurrentItem=Items.Last();
  }
  private void Add(string title,Func<ContentPage> create)
  {
