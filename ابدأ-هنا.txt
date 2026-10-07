@@ -1,14 +1,15 @@
-﻿هذا مشروع مصدر C#، وليس برنامج EXE جاهزاً.
+﻿ملفات تشغيل ومصدر نظام محاسبة السوبر ماركت لويندوز وأندرويد.
 
-لفتحه على جهاز ويندوز:
-1. فك ضغط الملف كاملاً؛ لا تفتح الحل داخل ملف ZIP.
-2. ثبّت Visual Studio 2022 مع .NET desktop development، وSQL Server Express وSSMS.
-3. نفّذ database/Setup.sql مرة واحدة من SSMS.
-4. افتح SupermarketAccounting.sln داخل Visual Studio، ثم اضغط F5.
-5. اضبط اسم خادم SQL Server من زر إعداد الاتصال.
+تنزيل EXE أو APK:
+https://github.com/lsrwrbdllh-dot/6666/actions/runs/37550599597
+افتح Artifacts بعد تسجيل الدخول إلى GitHub، ثم اختر الحزمة المطلوبة وفك ضغطها.
 
-إذا كان .NET 8 SDK مثبتاً، شغّل Build-and-Run.cmd من المجلد بعد فك الضغط.
-إذا ظهرت مشكلة، أرسل نص الخطأ مع تحديد الخطوة.
+Android: حزمة supermarket-android-debug لتجربة Wi-Fi؛ ثبّت ملف Signed.apk.
+Windows: حزمة supermarket-windows؛ شغّل SupermarketAccounting.exe مع .NET 8 Desktop Runtime.
+خادم الهاتف: supermarket-api؛ راجع mobile/README.md لإعداده وربطه بقاعدة SQL Server.
 
-تفاصيل كاملة في README.md.
-لم يتم اختبار بناء المشروع أو تشغيله فعلياً بعد.
+لقاعدة جديدة نفّذ database/Setup.sql مرة واحدة من SSMS.
+لقاعدة مجهزة سابقاً لا تعِد تنفيذ Setup.sql.
+
+نجح البناء والاختبارات الآلية، ولم يتم تشغيل الواجهات على أجهزة فعلية بعد.
+تفاصيل النتائج والحدود في BUILD-STATUS.md ودليل التشغيل README.md.
