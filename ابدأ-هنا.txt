@@ -1,15 +1,17 @@
 ﻿ملفات تشغيل ومصدر نظام محاسبة السوبر ماركت لويندوز وأندرويد.
 
 تنزيل EXE أو APK:
-https://github.com/lsrwrbdllh-dot/6666/actions/runs/37550599597
+https://github.com/lsrwrbdllh-dot/6666/actions/runs/37557073631
 افتح Artifacts بعد تسجيل الدخول إلى GitHub، ثم اختر الحزمة المطلوبة وفك ضغطها.
 
-Android: حزمة supermarket-android-debug لتجربة Wi-Fi؛ ثبّت ملف Signed.apk.
+Android: حزمة supermarket-android-verified المصححة لتجربة Wi-Fi؛ ثبّت ملف Signed.apk.
+ملفات خادم API وWindows وAPK HTTPS:
+https://github.com/lsrwrbdllh-dot/6666/actions/runs/37555623907
 Windows: حزمة supermarket-windows؛ شغّل SupermarketAccounting.exe مع .NET 8 Desktop Runtime.
 خادم الهاتف: supermarket-api؛ راجع mobile/README.md لإعداده وربطه بقاعدة SQL Server.
 
 لقاعدة جديدة نفّذ database/Setup.sql مرة واحدة من SSMS.
 لقاعدة مجهزة سابقاً لا تعِد تنفيذ Setup.sql.
 
-نجح البناء والاختبارات الآلية، ولم يتم تشغيل الواجهات على أجهزة فعلية بعد.
+نجح البناء والاختبارات الآلية وفتح APK على محاكي أندرويد 15. لم يتم اختباره على هاتف فعلي بعد.
 تفاصيل النتائج والحدود في BUILD-STATUS.md ودليل التشغيل README.md.

@@ -1,0 +1,59 @@
+name: Verify packaged Android APK
+on:
+  pull_request:
+    paths: ['.github/workflows/verify-packaged-android.yml']
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: Android build run containing supermarket-android-debug
+        default: '37555623907'
+        required: true
+        type: string
+permissions:
+  contents: read
+  actions: read
+jobs:
+  verify-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: supermarket-android-debug
+          path: artifacts/android
+          run-id: ${{ inputs.run_id || '37555623907' }}
+          github-token: ${{ github.token }}
+      - name: Enable emulator acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Install and open the packaged APK on Android 15
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          profile: pixel_6
+          disable-animations: true
+          script: python3 tests/android_launch.py artifacts/android
+      - name: Package the verified installer
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import shutil
+          out = Path('artifacts/verified')
+          out.mkdir(parents=True,exist_ok=True)
+          apk = sorted(Path('artifacts/android').rglob('*-Signed.apk'))[0]
+          shutil.copy2(apk,out/apk.name)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: supermarket-android-verified
+          path: artifacts/verified
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-launch-diagnostics
+          path: artifacts/android-launch
