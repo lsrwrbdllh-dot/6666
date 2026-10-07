@@ -1,6 +1,6 @@
 """Install the actual signed APK and verify it opens on a fresh Android emulator."""
 from pathlib import Path
-import subprocess, sys, time, xml.etree.ElementTree as ET
+import os, re, subprocess, sys, time, xml.etree.ElementTree as ET
 
 package = 'com.supermarket.accounting'
 root = Path(sys.argv[1])
@@ -37,7 +37,12 @@ try:
         raise AssertionError('First-run connection screen did not appear.')
     settings = adb('shell','dumpsys','package',package)
     (out/'package.txt').write_text(settings,encoding='utf-8')
-    assert 'USES_CLEARTEXT_TRAFFIC' in settings, 'LAN development APK still blocks HTTP.'
+    sdk = Path(os.environ.get('ANDROID_HOME') or os.environ['ANDROID_SDK_ROOT'])
+    aapt = sorted(sdk.glob('build-tools/*/aapt2'))[-1]
+    manifest = subprocess.check_output([str(aapt),'dump','xmltree',str(apks[0]),'--file','AndroidManifest.xml'],text=True)
+    (out/'manifest.txt').write_text(manifest,encoding='utf-8')
+    # Android 15's package dump omits this flag; inspect the packaged manifest.
+    assert re.search(r'android:usesCleartextTraffic[^=\n]*=.*0xffffffff',manifest), 'LAN development APK still blocks HTTP.'
     print('PASS: development APK allows LAN HTTP traffic.')
 finally:
     (out/'logcat.txt').write_text(adb('logcat','-d',check=False),encoding='utf-8')

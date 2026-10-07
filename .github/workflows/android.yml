@@ -3,6 +3,7 @@ on:
   push:
     branches: [main]
   pull_request:
+    paths-ignore: ['.github/workflows/verify-packaged-android.yml']
   workflow_dispatch:
 permissions:
   contents: read
