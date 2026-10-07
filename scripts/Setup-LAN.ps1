@@ -22,12 +22,12 @@ try {
     }
     $SqlServer = $SqlServer.Trim()
     $builder = New-Object System.Data.SqlClient.SqlConnectionStringBuilder
-    $builder.DataSource = $SqlServer
-    $builder.InitialCatalog = 'master'
-    $builder.IntegratedSecurity = $true
-    $builder.Encrypt = $true
-    $builder.TrustServerCertificate = $true
-    $builder.ConnectTimeout = 8
+    $builder['Data Source'] = $SqlServer
+    $builder['Initial Catalog'] = 'master'
+    $builder['Integrated Security'] = $true
+    $builder['Encrypt'] = $true
+    $builder['TrustServerCertificate'] = $true
+    $builder['Connect Timeout'] = 8
     $connection = New-Object System.Data.SqlClient.SqlConnection -ArgumentList $builder.ConnectionString
     try {
         Write-Host 'جارٍ التحقق من SQL Server...'
@@ -62,8 +62,8 @@ SELECT CASE WHEN OBJECT_ID('dbo.Products','U') IS NOT NULL
         if ($valid -ne 1) { throw 'القاعدة موجودة لكن تركيبها غير متوافق أو غير مكتمل. لم تتم إعادة إنشائها أو حذف بياناتها. راجع ملف Setup.sql مع مسؤول القاعدة.' }
     } finally { $connection.Dispose() }
 
-    $builder.InitialCatalog = 'SupermarketAccounting'
-    $builder.ConnectTimeout = 15
+    $builder['Initial Catalog'] = 'SupermarketAccounting'
+    $builder['Connect Timeout'] = 15
     $root = Get-StoreDataDirectory $DataDirectory
     [IO.Directory]::CreateDirectory($root) | Out-Null
     $lanDirectory = Join-Path $root 'lan'
