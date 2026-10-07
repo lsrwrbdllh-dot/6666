@@ -33,6 +33,10 @@ jobs:
         run: dotnet run --project tests/Supermarket.DatabaseChecks -- database
       - name: Verify HTTP API, posting, retries and rejected requests
         run: python3 tests/api_smoke.py --disposable-database
+      - name: Check mobile serialization with reflection disabled and trimming enabled
+        run: |
+          dotnet publish tests/Supermarket.MobileSerializationChecks -c Release -r linux-x64 --self-contained true -p:PublishTrimmed=true -p:JsonSerializerIsReflectionEnabledByDefault=false -o artifacts/mobile-json
+          artifacts/mobile-json/Supermarket.MobileSerializationChecks
       - name: Package API
         run: dotnet publish src/Supermarket.Api -c Release --no-build -o artifacts/api
       - uses: actions/upload-artifact@v4
@@ -66,3 +70,9 @@ jobs:
           name: supermarket-android-https
           path: mobile/Supermarket.Android/bin/Release/**/*-Signed.apk
           if-no-files-found: error
+      - name: Build original Windows app
+        run: dotnet publish src/SupermarketAccounting -c Release --self-contained false -o artifacts/windows
+      - uses: actions/upload-artifact@v4
+        with:
+          name: supermarket-windows
+          path: artifacts/windows

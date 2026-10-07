@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 using Supermarket.Contracts;
 namespace Supermarket.AndroidApp;
 
@@ -8,16 +9,10 @@ public sealed class ApiError(string message,int status) : Exception(message)
 {
  public int Status { get; }=status;
 }
-public sealed class PendingOperation
-{
- public string Route { get; set; }="";
- public string Body { get; set; }="";
- public string Endpoint { get; set; }="";
-}
 public sealed class ApiClient
 {
  public static ApiClient Current { get; }=new();
- public static JsonSerializerOptions Json { get; }=new(JsonSerializerDefaults.Web);
+ public static JsonSerializerOptions Json { get; }=new(JsonSerializerDefaults.Web){TypeInfoResolver=MobileJsonContext.Default};
  private readonly HttpClient http=new(){Timeout=TimeSpan.FromSeconds(30)};
  private readonly SemaphoreSlim gate=new(1,1);
  public string Endpoint { get; private set; }="";
@@ -46,7 +41,7 @@ public sealed class ApiClient
   Endpoint=normalized;key=apiKey.Trim();loaded=true;
  }
  public async Task<T> Get<T>(string route)=>await Send<T>(HttpMethod.Get,route,null);
- public async Task<T> Write<T>(string route,object body,bool update=false)=>await Send<T>(update?HttpMethod.Put:HttpMethod.Post,route,JsonSerializer.Serialize(body,Json));
+ public async Task<T> Write<T>(string route,object body,bool update=false)=>await Send<T>(update?HttpMethod.Put:HttpMethod.Post,route,JsonSerializer.Serialize(body,Json.GetTypeInfo(body.GetType())));
  private async Task<T> Send<T>(HttpMethod method,string route,string? body)
  {
   await Load();if(string.IsNullOrEmpty(Endpoint)||string.IsNullOrEmpty(key))throw new Exception("افتح إعداد الاتصال وأدخل عنوان الخادم والمفتاح.");
@@ -62,12 +57,12 @@ public sealed class ApiClient
    } catch(JsonException) { }
    throw new ApiError(message,(int)response.StatusCode);
   }
-  return await response.Content.ReadFromJsonAsync<T>(Json)??throw new Exception("استجابة الخادم فارغة.");
+  return await response.Content.ReadFromJsonAsync((JsonTypeInfo<T>)Json.GetTypeInfo(typeof(T)))??throw new Exception("استجابة الخادم فارغة.");
  }
  public async Task<PendingOperation?> Pending()
  {
   var text=await SecureStorage.Default.GetAsync("pending-post");
-  return text==null?null:JsonSerializer.Deserialize<PendingOperation>(text,Json);
+  return text==null?null:JsonSerializer.Deserialize(text,MobileJsonContext.Default.PendingOperation);
  }
  public async Task<Posted> PostAccounting(string route,object body)
  {
@@ -76,8 +71,8 @@ public sealed class ApiClient
    await Load();
    if(string.IsNullOrEmpty(Endpoint)||string.IsNullOrEmpty(key))throw new Exception("اضبط الاتصال أولاً.");
    if(await Pending()!=null)throw new Exception("يوجد طلب معلّق. افتح الملخص لإعادة إرساله قبل إنشاء عملية أخرى.");
-   var pending=new PendingOperation{Route=route,Body=JsonSerializer.Serialize(body,Json),Endpoint=Endpoint};
-   await SecureStorage.Default.SetAsync("pending-post",JsonSerializer.Serialize(pending,Json));
+   var pending=new PendingOperation{Route=route,Body=JsonSerializer.Serialize(body,Json.GetTypeInfo(body.GetType())),Endpoint=Endpoint};
+   await SecureStorage.Default.SetAsync("pending-post",JsonSerializer.Serialize(pending,MobileJsonContext.Default.PendingOperation));
    return await Submit(pending);
   } finally {gate.Release();}
  }

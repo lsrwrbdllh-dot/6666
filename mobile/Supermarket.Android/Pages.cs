@@ -107,7 +107,9 @@ public sealed class CashPage : Screen
    var value=Number(amount);if(value<=0||string.IsNullOrWhiteSpace(note.Text))throw new Exception("أدخل مبلغاً موجباً ووصف الحركة.");
    if(type.SelectedIndex>=2&&party.SelectedItem is not Party)throw new Exception("اختر الطرف.");
    lastRequest=Guid.NewGuid();var request=new CashRequest{RequestId=lastRequest,Kind=kinds[type.SelectedIndex],Amount=value,Note=note.Text.Trim(),PartyId=type.SelectedIndex>=2?(party.SelectedItem as Party)?.Id:null};
-   var result=await Api.PostAccounting("cash",request);amount.Text="";note.Text="";await DisplayAlertAsync("تم الحفظ",$"رقم العملية {result.Id}","حسناً");await LoadParties();
+   Body.IsEnabled=false;
+   try {var result=await Api.PostAccounting("cash",request);amount.Text="";note.Text="";await DisplayAlertAsync("تم الحفظ",$"رقم العملية {result.Id}","حسناً");await LoadParties();}
+   finally {Body.IsEnabled=true;}
   }));Body.Add(Text("عند انقطاع الاتصال، أعد إرسال الطلب المعلّق من صفحة الملخص."));
  }
  private async Task LoadParties()

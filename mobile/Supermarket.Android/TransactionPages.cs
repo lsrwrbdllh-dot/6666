@@ -51,7 +51,9 @@ public sealed class InvoicePage : Screen
   int? partyId=party.SelectedItem is Party p && p.Id>0?p.Id:null;
   if(payment<value&&partyId==null)throw new Exception("اختر عميلاً أو مورداً للفواتير الآجلة.");
   lastRequest=Guid.NewGuid();var request=new InvoiceRequest{Kind=kind,RequestId=lastRequest,PartyId=partyId,Paid=payment,Note=note.Text??"",Items=items.Select(x=>new InvoiceItem{ProductId=x.Item.ProductId,Quantity=x.Item.Quantity,UnitPrice=x.Item.UnitPrice}).ToList()};
-  var result=await Api.PostAccounting("invoices",request);Reset();await DisplayAlertAsync("تم الحفظ",$"رقم الفاتورة {result.Id}","حسناً");await Load();
+  Body.IsEnabled=false;
+  try {var result=await Api.PostAccounting("invoices",request);Reset();await DisplayAlertAsync("تم الحفظ",$"رقم الفاتورة {result.Id}","حسناً");await Load();}
+  finally {Body.IsEnabled=true;}
  }
  private void Reset(){items.Clear();note.Text="";lastRequest=Guid.Empty;UpdateBasket();}
  protected override async void OnAppearing(){base.OnAppearing();await Run(Load);}
