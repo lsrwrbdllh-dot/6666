@@ -1,0 +1,40 @@
+name: Windows local store package
+on:
+  pull_request:
+    paths: ['scripts/**', 'Setup-LAN.cmd', 'Start-LAN.cmd', 'Start-Windows.cmd', 'LAN-SETUP.md', 'tests/lan_setup_smoke.ps1', '.github/workflows/windows-local.yml', 'src/Supermarket.Api/**', 'src/SupermarketAccounting/**', 'src/Supermarket.Contracts/**', 'database/Setup.sql']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  package-and-check:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+      - name: Publish standalone Windows and phone server executables
+        run: |
+          dotnet publish src/SupermarketAccounting -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o artifacts/local/windows
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet publish src/Supermarket.Api -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o artifacts/local/server
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Copy local setup and launch files
+        run: |
+          New-Item -ItemType Directory artifacts/local/scripts,artifacts/local/database -Force | Out-Null
+          Copy-Item scripts/*.ps1 artifacts/local/scripts/
+          Copy-Item database/Setup.sql artifacts/local/database/
+          Copy-Item Setup-LAN.cmd,Start-LAN.cmd,Start-Windows.cmd artifacts/local/
+          Copy-Item LAN-SETUP.md artifacts/local/
+          Copy-Item LAN-SETUP.md artifacts/local/Read-First.txt
+      - name: Verify automatic setup, repeated setup and packaged server against SQL Server LocalDB
+        shell: powershell
+        run: .\tests\lan_setup_smoke.ps1 -PackageRoot artifacts/local -DisposableTest
+      - uses: actions/upload-artifact@v4
+        with:
+          name: supermarket-local-windows
+          path: artifacts/local
+          if-no-files-found: error
