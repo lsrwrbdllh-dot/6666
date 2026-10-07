@@ -5,6 +5,7 @@
 <ApplicationTitle>محاسبة السوبر ماركت</ApplicationTitle><ApplicationId>com.supermarket.accounting</ApplicationId>
 <ApplicationDisplayVersion>1.0.1</ApplicationDisplayVersion><ApplicationVersion>2</ApplicationVersion><SupportedOSPlatformVersion>26.0</SupportedOSPlatformVersion>
 <AndroidPackageFormats>apk</AndroidPackageFormats>
+<EmbedAssembliesIntoApk>true</EmbedAssembliesIntoApk>
 </PropertyGroup>
 <ItemGroup>
 <PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)"/>
