@@ -1,8 +1,10 @@
 # حالة البناء والتحقق
 
-تم التحقق عبر [GitHub Actions](https://github.com/lsrwrbdllh-dot/6666/actions/runs/37550599597) في 7 أكتوبر 2026 للكود في commit `35c87a76e6197bf68afa137ecb9cf1c46369de1f`.
+نجح البناء والاختبارات المحاسبية عبر [GitHub Actions](https://github.com/lsrwrbdllh-dot/6666/actions/runs/37555623907) في 7 أكتوبر 2026 للكود في commit `f14be591c303bd55a44a6b6b60b5617b93882278`. نجح تثبيت APK نفسه وفتحه والتحقق من manifest في [اختبار الحزمة المنفصل](https://github.com/lsrwrbdllh-dot/6666/actions/runs/37557073631)، باستخدام فحص التثبيت في commit `26064f8c879387bb0fa400a35ce96b1082af3956`.
 
 - نجح بناء APK أندرويد Debug وRelease ورفع الملفات.
+- نجح تثبيت APK Debug الموقّع وفتحه على محاكي أندرويد 15 بمعمارية x86_64؛ ظهرت شاشة الاتصال دون خادم مجهز.
+- تأكد الفحص من `usesCleartextTraffic=true` داخل manifest الحزمة التجريبية الفعلية.
 - نجح بناء خادم ASP.NET Core ونشر ملفاته.
 - نجح بناء نسخة Windows Forms الأصلية وإنتاج EXE يعتمد على .NET 8 Desktop Runtime.
 - نجحت اختبارات SQL: المخزون ومتوسط التكلفة والقيود وأرصدة الأطراف والتحصيل والسداد وإعادة الطلب ومنع المخزون السالب.
@@ -11,16 +13,22 @@
 
 ## تنزيل ملفات التشغيل
 
-افتح [صفحة البناء](https://github.com/lsrwrbdllh-dot/6666/actions/runs/37550599597) وسجل الدخول إلى GitHub ثم اختر الحزمة المطلوبة من Artifacts:
+للهاتف نزّل [حزمة APK المصححة والمختبرة](https://github.com/lsrwrbdllh-dot/6666/actions/runs/37557073631/artifacts/11454594274)، وسجل الدخول إلى GitHub ثم فك الضغط وثبّت ملف `*-Signed.apk`. الحزمة تحتوي ملف تثبيت واحداً، وحجم تنزيلها نحو 82 ميغابايت. تتطلب أندرويد 8 أو أحدث وجهازاً يدعم 64 بت.
+
+ملفات الخادم وHTTPS وويندوز متاحة في [صفحة البناء](https://github.com/lsrwrbdllh-dot/6666/actions/runs/37555623907)، ضمن Artifacts:
 
 | الحزمة | الاستخدام |
 | --- | --- |
-| `supermarket-android-debug` | APK لتجربة الاتصال داخل المتجر عبر Wi-Fi، ويدعم HTTP للتطوير |
+| `supermarket-android-verified` | APK Debug المصحح؛ من صفحة اختبار الحزمة المنفصل، لتجربة Wi-Fi وHTTP |
 | `supermarket-android-https` | APK يحتاج HTTPS؛ توقيع الاختبار الافتراضي |
 | `supermarket-api` | ملفات خادم C#؛ يحتاج .NET 10 Runtime وسلسلة اتصال ومفتاح API |
 | `supermarket-windows` | ملفات ويندوز؛ يحتاج .NET 8 Desktop Runtime وقاعدة SQL Server |
 
 فك ضغط الحزمة كاملة. لأندرويد ثبّت ملف `*-Signed.apk` الموجود داخلها؛ لويندوز شغّل `SupermarketAccounting.exe`. تحفظ الحزم مؤقتاً حسب سياسة GitHub Actions، ويمكن إعادة البناء من workflow عند انتهاء صلاحيتها.
+
+## سبب إصلاح حزمة الهاتف
+
+كانت حزمة Debug القديمة تفتقد managed assemblies وتعتمد Fast Deployment، فتغلق فور الفتح خارج أدوات التطوير. أضيف `EmbedAssembliesIntoApk=true` وأُصلح إعداد HTTP للتجربة، وتفتح النسخة 1.0.1 إعداد الاتصال عند أول تشغيل. فحص HTTP السابق في تشغيل البناء تعثر لأن Android لا يعرض العلم في `dumpsys package`؛ استُبدل بقراءة manifest عبر aapt2، والنتيجة المعتمدة هي اختبار الحزمة المنفصل الناجح أعلاه.
 
 ## ما لم يتم اختباره
 
