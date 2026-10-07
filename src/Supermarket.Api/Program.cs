@@ -14,7 +14,7 @@ if (string.IsNullOrWhiteSpace(connection))
  throw new InvalidOperationException("Set ConnectionStrings__Supermarket on the API host, never in the Android app.");
 var keyHash = SHA256.HashData(Encoding.UTF8.GetBytes(key));
 builder.Services.AddSingleton(new Store(connection));
-builder.Services.AddControllers();
+builder.Services.AddControllers().AddJsonOptions(options => options.JsonSerializerOptions.DictionaryKeyPolicy=System.Text.Json.JsonNamingPolicy.CamelCase);
 builder.Services.AddRateLimiter(options => {
  options.RejectionStatusCode = 429;
  options.AddPolicy("api", context => RateLimitPartition.GetFixedWindowLimiter(

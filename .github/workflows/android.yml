@@ -1,7 +1,7 @@
 name: Android and accounting checks
 on:
   push:
-    branches: [main, android-version]
+    branches: [main]
   pull_request:
   workflow_dispatch:
 permissions:
