@@ -21,6 +21,6 @@
 ## الحزمة المحلية المتحققة
 
 - الإصدار 2.0.0، رقم البناء 3، ARM64، نحو 36 ميغابايت.
-- SHA-256: `1bae737e8291db2c897de327b1d519b104467feb1098da100558bf404aa3cbd1`.
+- SHA-256: `b623aca73f8f6a12fafbd86a2f9b9031e170f4ecafa59d9e2ee1a633582a8408`.
 - تم التحقق من التوقيع ووجود ملفات الواجهة الحالية والخط والشعار وSQLite داخل APK، ومن غياب INTERNET وACCESS_NETWORK_STATE.
 - الصور: [الرئيسية](docs/screenshots/home.png)، [المخزون](docs/screenshots/inventory.png)، [فاتورة البيع](docs/screenshots/sale.png).
