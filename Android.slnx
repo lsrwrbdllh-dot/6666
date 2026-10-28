@@ -1,5 +1,4 @@
 <Solution>
- <Project Path="src/Supermarket.Contracts/Supermarket.Contracts.csproj" />
- <Project Path="src/Supermarket.Api/Supermarket.Api.csproj" />
+ <Project Path="src/Madar.Core/Madar.Core.csproj" />
  <Project Path="mobile/Supermarket.Android/Supermarket.Android.csproj" />
 </Solution>
