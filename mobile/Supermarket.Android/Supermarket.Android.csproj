@@ -2,15 +2,30 @@
 <PropertyGroup>
 <TargetFramework>net10.0-android</TargetFramework><OutputType>Exe</OutputType><RootNamespace>Supermarket.AndroidApp</RootNamespace>
 <UseMaui>true</UseMaui><SingleProject>true</SingleProject><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable>
-<ApplicationTitle>محاسبة السوبر ماركت</ApplicationTitle><ApplicationId>com.supermarket.accounting</ApplicationId>
-<ApplicationDisplayVersion>1.0.1</ApplicationDisplayVersion><ApplicationVersion>2</ApplicationVersion><SupportedOSPlatformVersion>26.0</SupportedOSPlatformVersion>
+<ApplicationTitle>مدار سوفت</ApplicationTitle><ApplicationId>com.supermarket.accounting</ApplicationId>
+<ApplicationDisplayVersion>2.2.0</ApplicationDisplayVersion><ApplicationVersion>5</ApplicationVersion><SupportedOSPlatformVersion>26.0</SupportedOSPlatformVersion>
 <AndroidPackageFormats>apk</AndroidPackageFormats>
 <EmbedAssembliesIntoApk>true</EmbedAssembliesIntoApk>
+<PublishTrimmed>false</PublishTrimmed>
+<RunAOTCompilation>false</RunAOTCompilation>
 </PropertyGroup>
 <ItemGroup>
 <PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)"/>
-<ProjectReference Include="../../src/Supermarket.Contracts/Supermarket.Contracts.csproj"/>
-<MauiIcon Include="Resources/AppIcon/appicon.svg" Color="#125C60"/>
-<MauiSplashScreen Include="Resources/Splash/splash.svg" Color="#125C60" BaseSize="128,128"/>
+<PackageReference Include="ZXing.Net" Version="0.16.11"/>
+<ProjectReference Include="../../src/Madar.Core/Madar.Core.csproj"/>
+<ProjectReference Include="../../src/Madar.AI/Madar.AI.csproj"/>
+<MauiIcon Include="Resources/AppIcon/madar.jpg" Color="#031034" BaseSize="1280,1280"/>
+<MauiSplashScreen Include="Resources/Splash/madar.jpg" Color="#031034" BaseSize="180,180"/>
+<AndroidAsset Include="www/**/*" />
 </ItemGroup>
+<ItemGroup Condition="'$(RuntimeIdentifier)'=='android-arm64' Or '$(RuntimeIdentifier)'==''">
+ <AndroidNativeLibrary Include="../../artifacts/ai-native/arm64-v8a/*.so" Abi="arm64-v8a" />
+</ItemGroup>
+<ItemGroup Condition="'$(RuntimeIdentifier)'=='android-x64' Or '$(RuntimeIdentifier)'==''">
+ <AndroidNativeLibrary Include="../../artifacts/ai-native/x86_64/*.so" Abi="x86_64" />
+</ItemGroup>
+<Target Name="RequireLocalAiNative" BeforeTargets="PrepareForBuild" Condition="'$(DesignTimeBuild)'!='true'">
+ <Error Condition="'$(RuntimeIdentifier)'!='android-x64' And !Exists('../../artifacts/ai-native/arm64-v8a/libllama.so')" Text="Build the AI backend with scripts/build-ai-native.py before publishing Android; see mobile/README.md." />
+ <Error Condition="'$(RuntimeIdentifier)'=='android-x64' And !Exists('../../artifacts/ai-native/x86_64/libllama.so')" Text="Build the x64 AI backend with scripts/build-ai-native.py before publishing the emulator APK." />
+</Target>
 </Project>

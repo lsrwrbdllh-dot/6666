@@ -11,3 +11,6 @@
 .env
 .env.*
 appsettings.Local.json
+artifacts/
+__pycache__/
+*.pyc
