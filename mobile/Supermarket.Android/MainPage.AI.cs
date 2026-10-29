@@ -8,8 +8,15 @@ public sealed partial class MainPage
 {
     private readonly LocalAssistant intelligence = new(Path.Combine(FileSystem.AppDataDirectory, "madar-ai"));
     private int aiEpoch;
+    private CancellationTokenSource aiContext = new();
 
-    private void CancelAiContext() { Interlocked.Increment(ref aiEpoch); intelligence.Cancel(); }
+    private void CancelAiContext()
+    {
+        Interlocked.Increment(ref aiEpoch);
+        var previous = Interlocked.Exchange(ref aiContext, new CancellationTokenSource());
+        previous.Cancel(); previous.Dispose();
+        intelligence.Cancel();
+    }
 
     private async Task<bool> TryProcessAi(string raw)
     {
@@ -39,18 +46,22 @@ public sealed partial class MainPage
                     LocalAssistant.ConfigureNative(Path.Combine(nativePath ?? "", "libllama.so"));
                     var answer = await Task.Run(() => intelligence.AskAsync(question,
                         (capture.Training ? "بيانات تدريب منفصلة عن المتجر الحقيقي.\n" : "") + capture.Facts.GetProperty("summary").GetString(),
-                        text => capture.Epoch == Volatile.Read(ref aiEpoch) ? NotifyAi(id, text) : Task.CompletedTask));
+                        text => NotifyAi(id, text, capture.Epoch), cancellation: capture.Cancellation), capture.Cancellation);
                     if (capture.Epoch != Volatile.Read(ref aiEpoch)) throw new InvalidOperationException("توقف الرد بعد تغيير الجلسة أو وضع التدريب.");
                     result = new { answer.Answer, answer.Model, answer.ElapsedMs, answer.Tokens, answer.Stopped, facts = capture.Facts, training = capture.Training };
                 }
                 else
                 {
+                    int authorizedEpoch;
+                    CancellationToken authorizedContext;
                     // Hold the app request lock only for short authenticated reads, not model inference.
                     await requests.WaitAsync();
                     try
                     {
                         Current.Execute("state", JsonSerializer.SerializeToElement(new { }));
                         if (action is "ai.import" or "ai.remove") production.Execute("users", JsonSerializer.SerializeToElement(new { }));
+                        authorizedEpoch = Volatile.Read(ref aiEpoch);
+                        authorizedContext = aiContext.Token;
                     }
                     finally { requests.Release(); }
                     switch (action)
@@ -64,9 +75,25 @@ public sealed partial class MainPage
                             var file = await MainThread.InvokeOnMainThreadAsync(() => FilePicker.Default.PickAsync(new PickOptions { PickerTitle = "اختر ملف الذكاء GGUF بعد اكتمال تنزيله" }));
                             if (file is null) { result = false; break; }
                             if (!file.FileName.EndsWith(".gguf", StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException("اختر ملف GGUF؛ فك ضغط ZIP أولاً إن كان مضغوطاً.");
-                            using (var stream = await file.OpenReadAsync()) result = await intelligence.ImportAsync(stream);
+                            await requests.WaitAsync(authorizedContext);
+                            try
+                            {
+                                authorizedContext.ThrowIfCancellationRequested();
+                                if (authorizedEpoch != Volatile.Read(ref aiEpoch)) throw new OperationCanceledException(authorizedContext);
+                                production.Execute("users", JsonSerializer.SerializeToElement(new { }));
+                            }
+                            finally { requests.Release(); }
+                            using (var stream = await file.OpenReadAsync()) result = await intelligence.ImportAsync(stream, cancellation: authorizedContext);
                             break;
-                        case "ai.remove": await intelligence.RemoveAsync(); result = true; break;
+                        case "ai.remove":
+                            await requests.WaitAsync(authorizedContext);
+                            try
+                            {
+                                production.Execute("users", JsonSerializer.SerializeToElement(new { }));
+                                await intelligence.RemoveAsync(); result = true;
+                            }
+                            finally { requests.Release(); }
+                            break;
                         default: throw new InvalidOperationException("عملية المساعد غير معروفة.");
                     }
                 }
@@ -74,26 +101,27 @@ public sealed partial class MainPage
             }
             catch (Exception error)
             {
-                var message = error is InvalidOperationException ? error.Message : "تعذر تشغيل المساعد المحلي. تحقق من ملف النموذج والذاكرة المتاحة ثم أعد المحاولة.";
+                var message = error is OperationCanceledException ? "توقفت العملية بعد تغيير الجلسة أو وضع التدريب." : error is InvalidOperationException ? error.Message : "تعذر تشغيل المساعد المحلي. تحقق من ملف النموذج والذاكرة المتاحة ثم أعد المحاولة.";
                 await Reply(id, false, null, message);
             }
             return true;
         }
     }
 
-    private async Task<(JsonElement Facts, int Epoch, bool Training)> CaptureAi(JsonElement args)
+    private async Task<(JsonElement Facts, int Epoch, bool Training, CancellationToken Cancellation)> CaptureAi(JsonElement args)
     {
         await requests.WaitAsync();
         try
         {
             var facts = JsonSerializer.SerializeToElement(Current.Execute("assistant.facts", args), Store.Json);
-            return (facts, Volatile.Read(ref aiEpoch), training is not null);
+            return (facts, Volatile.Read(ref aiEpoch), training is not null, aiContext.Token);
         }
         finally { requests.Release(); }
     }
 
-    private Task NotifyAi(long id, string text) => MainThread.InvokeOnMainThreadAsync(async () =>
+    private Task NotifyAi(long id, string text, int epoch) => MainThread.InvokeOnMainThreadAsync(async () =>
     {
+        if (epoch != Volatile.Read(ref aiEpoch)) return;
         var payload = JsonSerializer.Serialize(new { id, text }, Store.Json);
         await browser.EvaluateJavaScriptAsync("window.madarAiToken && window.madarAiToken(" + payload + ")");
     });

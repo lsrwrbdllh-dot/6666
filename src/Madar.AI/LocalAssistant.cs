@@ -83,6 +83,7 @@ public sealed class LocalAssistant
             // Replace only after a complete byte-for-byte integrity check. Keep the old model on failure.
             var marker = Path.Combine(directory, "model.json.tmp");
             await File.WriteAllTextAsync(marker, JsonSerializer.Serialize(profile, json), cancellation);
+            cancellation.ThrowIfCancellationRequested();
             File.Move(stage, Path.Combine(directory, "model.gguf"), true);
             File.Move(marker, Path.Combine(directory, "model.json"), true);
             return profile;

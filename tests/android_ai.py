@@ -63,9 +63,20 @@ def main():
         evaluate("(async()=>{const unit=(await rpc('products')).units[0].id;return rpc('invoice.post',{kind:'Purchase',warehouseId:1,full:true,requestId:crypto.randomUUID(),lines:[{unitId:unit,quantity:10,price:3}]})})()")
         evaluate("(async()=>{const unit=(await rpc('products')).units[0].id;return rpc('invoice.post',{kind:'Sale',warehouseId:1,full:true,requestId:crypto.randomUUID(),lines:[{unitId:unit,quantity:2,price:5}]})})()")
         adb('shell','run-as',PACKAGE,'mkdir','-p','files/madar-ai')
-        with model.open('rb') as source:
-            subprocess.run(['adb','exec-in','run-as',PACKAGE,'tee','files/madar-ai/model.gguf'],stdin=source,stdout=subprocess.DEVNULL,check=True,timeout=180)
-        subprocess.run(['adb','exec-in','run-as',PACKAGE,'tee','files/madar-ai/model.json'],input=json.dumps(PROFILE).encode(),stdout=subprocess.DEVNULL,check=True,timeout=30)
+        # adb exec-in may not deliver stdin EOF to tee on newer platform-tools.
+        # Push once, then perform a bounded local copy rather than an open pipe.
+        temporary='/data/local/tmp/madar-qa-model.gguf'
+        subprocess.run(['adb','push',str(model),temporary],check=True,timeout=240)
+        adb('shell','chmod','644',temporary)
+        adb('shell','run-as',PACKAGE,'cp',temporary,'files/madar-ai/model.gguf')
+        adb('shell','rm',temporary)
+        installed=adb('shell','run-as',PACKAGE,'sha256sum','files/madar-ai/model.gguf').split()[0]
+        assert installed==SHA,installed
+        marker=out/'model.json';marker.write_text(json.dumps(PROFILE),encoding='utf-8')
+        subprocess.run(['adb','push',str(marker),'/data/local/tmp/madar-qa-model.json'],check=True,timeout=30)
+        adb('shell','chmod','644','/data/local/tmp/madar-qa-model.json')
+        adb('shell','run-as',PACKAGE,'cp','/data/local/tmp/madar-qa-model.json','files/madar-ai/model.json')
+        adb('shell','rm','/data/local/tmp/madar-qa-model.json')
         status=evaluate("rpc('ai.status')")
         assert status['status']['ready'],status
         evaluate("go('assistant')")
