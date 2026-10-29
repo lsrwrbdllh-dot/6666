@@ -142,17 +142,53 @@ async def main(url):
             await capture('05-reports.png')
             await page.locator('.bottom-nav [data-go="more"]').click()
             await page.locator('.menu-row[data-go="assistant"]').click()
-            await page.get_by_role('heading',name='المساعد الذكي المحلي').wait_for()
+            await page.get_by_role('heading',name='المحاكي الذكي',exact=True).wait_for()
             await page.get_by_role('button',name='استيراد النموذج GGUF',exact=True).wait_for()
             assert await page.get_by_role('button',name='اسأل المساعد',exact=True).count()==0, 'Missing model must not appear enabled'
             await capture('06-assistant-setup.png')
+            await page.locator('[data-action="simulator.back"]').click()
+            await page.get_by_role('heading',name='محاكاة عملية',exact=True).wait_for()
+            await capture('07-simulator.png')
+            baseline_documents=len(await page.evaluate("rpc('documents')"))
+            await page.locator('[data-action="simulator.start"][data-kind="credit-sale"]').click()
+            await page.locator('[data-form="simulator.answer"]').wait_for()
+            active=await page.evaluate('simulation.active')
+            givens={g['label']:g['text'].split()[0] for g in active['givens']}
+            from decimal import Decimal
+            quantity=Decimal(givens['الكمية']);price=Decimal(givens['سعر بيع الحبة']);cost=Decimal(givens['تكلفة الحبة'])
+            paid=Decimal(givens['الدفعة المقبوضة']);cash=Decimal(givens['الصندوق قبل البيع']);stock=Decimal(givens['الكمية قبل البيع'])
+            expected={'total':quantity*price,'debt':quantity*price-paid,'cash':cash+paid,'stock':stock-quantity,'profit':quantity*(price-cost)}
+            await page.locator('[data-form="simulator.answer"] select[name="answer"]').select_option('cash')
+            await page.get_by_role('button',name='تحقق من الإجابة',exact=True).click()
+            await page.get_by_role('status').filter(has_text='راجع الخطوة').wait_for()
+            assert await page.evaluate('simulation.active.step')==0
+            await capture('08-simulation.png')
+            await page.locator('[data-form="simulator.answer"] select[name="answer"]').select_option('credit')
+            await page.get_by_role('button',name='تحقق من الإجابة',exact=True).click()
+            await page.locator('.intro p').filter(has_text='الخطوة 2 من').wait_for()
+            for index in range(1,6):
+                active=await page.evaluate('simulation.active')
+                await page.locator('[data-form="simulator.answer"] input[name="answer"]').fill(str(expected[active['question']['id']]))
+                await page.get_by_role('button',name='تحقق من الإجابة',exact=True).click()
+                if index<5:
+                    await page.locator('.intro p').filter(has_text=f'الخطوة {index+2} من').wait_for()
+                else:
+                    await page.get_by_role('heading',name='أحسنت، اكتملت الجلسة',exact=True).wait_for()
+            await page.get_by_role('heading',name='أحسنت، اكتملت الجلسة',exact=True).wait_for()
+            assert await page.evaluate('simulation.active.score')==83
+            await capture('09-simulation-completed.png')
+            assert len(await page.evaluate("rpc('documents')"))==baseline_documents,'Practice posted real documents'
+            await page.locator('[data-action="simulator.coach"]').click()
+            await page.get_by_role('heading',name='مدرب المحاكاة',exact=True).wait_for()
+            await page.locator('[data-action="assistant.store"]').click()
+            await page.get_by_role('heading',name='المحاكي الذكي',exact=True).wait_for()
             await page.set_viewport_size({'width':320,'height':740})
             for destination in ('home','inventory','sale'):
                 await page.locator(f'.bottom-nav [data-go="{destination}"]').click()
                 await page.locator('#loading').wait_for(state='hidden')
                 assert await page.evaluate('document.documentElement.scrollWidth<=innerWidth'), f'320px overflow: {destination}'
             assert not errors, errors
-            print('PASS phone UI setup, product, shift, funding, purchase, sale, actual stock/cash, reports and overflow')
+            print('PASS actual SQLite phone UI, credit simulator scoring, isolated documents, coaching scope and overflow')
 
 
 if __name__=='__main__':

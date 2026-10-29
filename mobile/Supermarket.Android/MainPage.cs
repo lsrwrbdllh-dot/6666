@@ -97,6 +97,13 @@ public sealed partial class MainPage : ContentPage
                 case "training.exit": training?.Dispose(); training = null; result = true; break;
                 case "training":
                 case "training.save": result = production.Execute(action, args); break;
+                case "simulator.catalog":
+                case "simulator.get":
+                case "simulator.start":
+                case "simulator.answer":
+                    var practiceOwner = SimulatorOwner();
+                    if (action is "simulator.start" or "simulator.answer") CancelAiContext();
+                    result = simulator.Execute(practiceOwner, action, args); break;
                 case "files.backup":
                     EnsureProduction();
                     var backup = production.Backup(Path.Combine(FileSystem.CacheDirectory, "Madar-" + DateTime.Now.ToString("yyyyMMdd-HHmmss") + ".zip"));

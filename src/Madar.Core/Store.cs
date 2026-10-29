@@ -28,6 +28,7 @@ public sealed partial class Store : IDisposable
         if (Long("PRAGMA user_version") > SchemaVersion) throw Error("قاعدة البيانات من إصدار أحدث؛ حدّث التطبيق قبل فتحها.");
         Run(Schema);
         Run("INSERT OR IGNORE INTO Settings(Key,Value) VALUES('storeName','متجري'),('currency','وحدة نقدية'),('paper','80')");
+        Run("INSERT OR IGNORE INTO Settings(Key,Value) VALUES('storeInstanceId',$id)", ("id", Guid.NewGuid().ToString("N")));
         db = null!;
     }
 
@@ -73,6 +74,7 @@ public sealed partial class Store : IDisposable
                 return action switch
                 {
                     "state" => new { user = session, settings = Settings(), shift = CurrentShift(), version = SchemaVersion },
+                    "session.scope" => SessionScope(),
                     "dashboard" => Dashboard(),
                     "products" => Products(input),
                     "parties" => Parties(input),
@@ -187,6 +189,12 @@ public sealed partial class Store : IDisposable
     {
         Run("INSERT INTO Training(UserId,Lesson,Step,Completed) VALUES($user,$lesson,$step,$done) ON CONFLICT(UserId,Lesson) DO UPDATE SET Step=excluded.Step,Completed=excluded.Completed", ("user", session!.Id), ("lesson", Required(input, "lesson", "الدرس")), ("step", Math.Clamp(Id(input, false, "step"), 0, 100)), ("done", Bool(input, "completed")));
         return true;
+    }
+    private object SessionScope()
+    {
+        // Older restored backups may predate the per-store training identity.
+        Run("INSERT OR IGNORE INTO Settings(Key,Value) VALUES('storeInstanceId',$id)", ("id", Guid.NewGuid().ToString("N")));
+        return new { storeId = Scalar("SELECT Value FROM Settings WHERE Key='storeInstanceId'"), userId = session!.Id };
     }
     private void Owner() { if (session?.Role != "Owner") throw Error("هذه العملية تحتاج صلاحية المدير."); }
     private void ValidateSession()

@@ -134,6 +134,7 @@ try
     }
     var trial = Call("reports", new { kind = "trial" }).EnumerateArray().ToList();
     Check(trial.Sum(r => r.GetProperty("debit").GetInt64()) == trial.Sum(r => r.GetProperty("credit").GetInt64()), "all ledger accounts balance after all scenarios");
+    SimulatorChecks.Run(directory, Check);
     Console.WriteLine("ALL OFFLINE CHECKS PASSED");
 }
 finally { store.Dispose(); Directory.Delete(directory, true); }

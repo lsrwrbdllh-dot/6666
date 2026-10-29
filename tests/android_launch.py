@@ -43,6 +43,17 @@ try:
         (out/'window.xml').write_text(xml, encoding='utf-8')
         tree = ET.fromstring(xml[xml.index('<?xml'):])
         labels = [node.attrib.get('text', '')+' '+node.attrib.get('content-desc', '') for node in tree.iter('node')]
+        # A fresh Google APIs image can show its own Pixel Launcher ANR over
+        # our already-loaded setup screen. Dismiss that specific OS dialog;
+        # never suppress an ANR or crash belonging to the app under test.
+        if any('Pixel Launcher' in label and ('responding' in label or 'الاستجابة' in label) for label in labels):
+            (out/'launcher-anr.xml').write_text(xml,encoding='utf-8')
+            close=next((node for node in tree.iter('node') if node.attrib.get('text') in ('Close app','إغلاق التطبيق')),None)
+            if close is not None:
+                bounds=list(map(int,re.findall(r'\d+',close.attrib['bounds'])))
+                adb('shell','input','tap',str((bounds[0]+bounds[2])//2),str((bounds[1]+bounds[3])//2))
+                print('Dismissed external Pixel Launcher ANR; target app remains running.')
+                continue
         if any('إنشاء حساب المدير' in label for label in labels):
             assert not any('keeps stopping' in label or 'has stopped' in label for label in labels)
             assert not any('اتصال الهاتف بالخادم' in label for label in labels)

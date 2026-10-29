@@ -90,6 +90,7 @@ let aiState = {
   stopped: false,
   epoch: 0,
 };
+let simulation = { catalog: null, active: null };
 let inventoryFilter = { search: "", warehouse: 0, category: "", low: false };
 const app = $("#app"),
   dialog = $("#modal");
@@ -307,6 +308,10 @@ async function go(next, force = false) {
     ))
   )
     return;
+  if (context.simulationId && !["assistant", "simulator"].includes(next)) {
+    await rpc("ai.cancel");
+    resetAiSession();
+  }
   route = next;
   switch (next) {
     case "home":
@@ -367,6 +372,11 @@ async function go(next, force = false) {
       break;
     case "training":
       trainingView();
+      break;
+    case "simulator":
+      simulation.catalog = await rpc("simulator.catalog");
+      if (context.simulationId) simulation.active = await rpc("simulator.get", { id: context.simulationId });
+      simulatorView();
       break;
     default:
       moreView();
@@ -676,7 +686,8 @@ function moreView() {
     ["documents", "سجل العمليات", "الفواتير والمسودات والمرفقات", "receipt"],
     ["reports", "التقارير", "الربحية والاستحقاقات والمخزون", "chart"],
     ["parties", "العملاء والموردون", "الأرصدة وبيانات الأطراف", "users"],
-    ["assistant", "المساعد المحلي", "إرشاد محاسبي وتنبيهات المراجعة", "robot"],
+    ["assistant", "المحاكي الذكي", "اسأل عن الأرقام وتدرّب على المحاسبة", "robot"],
+    ["simulator", "التدريب العملي", "سيناريوهات ونتيجة وتوجيه ذكي", "book"],
     ["training", "التدريب", "تعلّم على بيانات منفصلة", "book"],
     [
       "backup",
@@ -746,7 +757,7 @@ function shiftsView() {
   );
 }
 
-function resetAiSession() {
+function resetAiSession(keepPractice = false) {
   aiState.epoch++;
   aiState.running = false;
   aiState.answer = "";
@@ -754,6 +765,10 @@ function resetAiSession() {
   aiState.error = "";
   aiState.facts = null;
   aiState.stopped = false;
+  if (!keepPractice) {
+    context.simulationId = null;
+    simulation = { catalog: null, active: null };
+  }
 }
 function assistantView() {
   const info = aiState.info,
@@ -761,9 +776,9 @@ function assistantView() {
   const mb = Math.ceil((info?.recommended?.bytes || 484220320) / 1000000);
   const setup = `<section class="card ai-setup"><div class="row"><span class="medallion">${icon("robot")}</span><div><h3>${ready ? esc(info.status.model.name) : "جهّز المساعد لمرة واحدة"}</h3><p class="small muted">${info?.device ? esc(info.device) + " · " : ""}${info?.memoryMb ? Number(info.memoryMb / 1024).toLocaleString("ar", { maximumFractionDigits: 1 }) + " غيغابايت ذاكرة" : "وضع خفيف للهاتف"}</p></div></div>${!ready ? `<p class="section-hint">نزّل ملف الذكاء (نحو ${mb} ميغابايت) من المتصفح، ثم اختر «استيراد النموذج». بعد ذلك تعمل المحادثة دون إنترنت أو كمبيوتر أو اشتراك.</p><div class="stack">${btn("تنزيل ملف الذكاء", "ai.download", "btn full", "download")}${owner() ? btn("استيراد النموذج GGUF", "ai.import", "btn outline full", "folder") : "<p class='section-hint'>يجهّز مدير التطبيق النموذج أولاً، ثم يستطيع الموظفون استخدامه.</p>"}</div>` : `<p class="section-hint">النموذج جاهز على هاتفك. لا تُرسل الأسئلة أو أرقام المتجر إلى خادم.</p><details><summary>إدارة ملف الذكاء</summary><div class="stack" style="margin-top:12px">${btn("تنزيل الملف مجدداً", "ai.download", "btn light full", "download")}${owner() ? btn("استبدال ملف النموذج", "ai.import", "btn outline full", "folder") + btn("حذف النموذج من الهاتف", "ai.remove", "btn danger full", "trash") : ""}</div><p class="section-hint">ملف الذكاء منفصل عن بيانات المتجر والنسخة الاحتياطية.</p></details>`}</section>`;
   frame(
-    `<section class="intro"><h1>المساعد الذكي المحلي</h1><p>اسأل بالعربية عن بياناتك أو المحاسبة الأساسية</p></section>${setup}${
+    `<section class="intro"><h1>${context.simulationId ? "مدرب المحاكاة" : "المحاكي الذكي"}</h1><p>${context.simulationId ? "شرح وتوجيه لجلسة تدريب افتراضية" : "اسأل بالعربية عن أرقامك أو تدرّب على المحاسبة"}</p></section>${context.simulationId ? `<div class="notice">أنت في تدريب: ${esc(simulation.active?.title || "جلسة افتراضية")}. الأرقام هنا ليست أرصدة متجرك.</div><div class="row wrap">${btn("العودة للتمرين", "simulator.back", "btn light", "book")}${btn("أسئلة عن متجري", "assistant.store", "btn outline", "home")}</div>` : `<div class="stack" style="margin-bottom:18px">${btn("ابدأ تدريباً عملياً", "simulator.back", "btn light full", "book")}</div>`}${setup}${
       ready
-        ? `<form class="ai-form" data-form="assistant.ai"><label class="field"><span>الفترة للأرقام المرجعية</span><select name="days" ${aiState.running ? "disabled" : ""}>${[
+        ? `<form class="ai-form" data-form="assistant.ai">${context.simulationId ? "" : `<label class="field"><span>الفترة للأرقام المرجعية</span><select name="days" ${aiState.running ? "disabled" : ""}>${[
             [1, "اليوم"],
             [7, "آخر 7 أيام"],
             [30, "آخر 30 يوماً"],
@@ -774,18 +789,18 @@ function assistantView() {
             )
             .join(
               "",
-            )}</select></label><label class="field"><textarea name="question" placeholder="مثال: كم رصيد الصندوق؟ وما الفرق بين الربح والمبيعات؟" maxlength="400" required ${aiState.running ? "disabled" : ""}>${esc(aiState.question)}</textarea></label><div class="row"><button class="btn grow" type="submit" ${aiState.running ? "disabled" : ""}>${icon("robot", 18)}${aiState.running ? "جارٍ إعداد الرد…" : "اسأل المساعد"}</button>${aiState.running ? btn("إيقاف", "ai.cancel", "btn outline", "close") : ""}</div></form>`
+            )}</select></label>`}<label class="field"><textarea name="question" placeholder="${context.simulationId ? "اشرح لي هذه الخطوة، ولماذا كانت إجابتي غير صحيحة؟" : "مثال: كم رصيد الصندوق؟ وما الفرق بين الربح والمبيعات؟"}" maxlength="400" required ${aiState.running ? "disabled" : ""}>${esc(aiState.question)}</textarea></label><div class="row"><button class="btn grow" type="submit" ${aiState.running ? "disabled" : ""}>${icon("robot", 18)}${aiState.running ? "جارٍ إعداد الرد…" : "اسأل المساعد"}</button>${aiState.running ? btn("إيقاف", "ai.cancel", "btn outline", "close") : ""}</div></form>`
         : ""
     }${aiState.error ? `<p class="notice error" role="alert">${esc(aiState.error)}</p>` : ""}${aiState.running || aiState.answer || aiState.stopped ? `<section class="card ai-response"><div class="row between"><h3>الرد</h3><span class="pill">${aiState.running ? "على هاتفك…" : aiState.stopped ? "توقف الرد" : "ذكاء محلي"}</span></div><p id="ai-answer" class="assistant-answer" aria-live="polite">${esc(aiState.answer || "يُحمّل النموذج ويقرأ ملخص الأرقام…")}</p>${aiState.model ? `<small class="muted">${esc(aiState.model)}</small>` : ""}</section>` : ""}${
       aiState.facts
-        ? `<details class="card ai-facts"><summary>الأرقام المرجعية عند بدء السؤال</summary><p class="section-hint">${esc(aiState.facts.from)} — ${esc(aiState.facts.to)}</p>${[
+        ? aiState.facts.simulation ? `<details class="card ai-facts"><summary>معطيات جلسة التدريب</summary>${aiState.facts.values.map(v => `<div class="summary-line"><span>${esc(v.label)}</span><strong>${esc(v.text)}</strong></div>`).join("")}</details>` : `<details class="card ai-facts"><summary>الأرقام المرجعية عند بدء السؤال</summary><p class="section-hint">${esc(aiState.facts.from)} — ${esc(aiState.facts.to)}</p>${[
             ["المبيعات", aiState.facts.sales],
             ["صافي الربح", aiState.facts.netProfit],
             ["رصيد الصندوق", aiState.facts.cash],
           ]
             .map(
               ([label, value]) =>
-                `<div class="summary-line"><span>${label}</span><strong>${money(value)}</strong></div>`,
+                `<div class="summary-line"><span>${label}</span><strong>${money(value, false)} ${esc(aiState.facts.currency)}</strong></div>`,
             )
             .join("")}</details>`
         : ""
@@ -810,17 +825,20 @@ async function askLocalAi(values) {
   aiState.stopped = false;
   const epoch = ++aiState.epoch,
     user = S.user?.id,
-    sandbox = !!S.training;
+    sandbox = !!S.training,
+    practice = context.simulationId || "";
   assistantView();
   try {
     const result = await rpc("ai.ask", {
       question: aiState.question,
       days: aiState.days,
+      simulationId: practice,
     });
     if (
       aiState.epoch !== epoch ||
       S.user?.id !== user ||
-      !!S.training !== sandbox
+      !!S.training !== sandbox ||
+      (context.simulationId || "") !== practice
     )
       return;
     aiState.answer = result.answer;
@@ -835,6 +853,18 @@ async function askLocalAi(values) {
       if (route === "assistant") assistantView();
     }
   }
+}
+function simulatorView() {
+  const catalog = simulation.catalog, active = simulation.active;
+  const levels = [[1,"تمهيدي"],[2,"متوسط"],[3,"متقدم"]];
+  if (!active) {
+    const recent = catalog.recent || [];
+    frame(`<section class="intro"><h1>محاكاة عملية</h1><p>تدرّب على قرارات المحاسبة بأرقام افتراضية</p></section><p class="notice">هذه التمارين لا تُنشئ فواتير أو حركات في متجرك الحقيقي.</p><label class="field"><span>مستوى التدريب</span><select id="simulation-level">${levels.map(([id,title])=>`<option value="${id}" ${id===catalog.recommendedDifficulty?"selected":""}>${title}${id===catalog.recommendedDifficulty?" — مقترح لك":""}</option>`).join("")}</select></label><div class="stack">${catalog.scenarios.map(s=>`<button class="card simulation-choice" data-action="simulator.start" data-kind="${esc(s.id)}"><span class="medallion">${icon("book")}</span><span><strong>${esc(s.title)}</strong><small>${esc(s.description)}</small></span>${icon("arrow",18)}</button>`).join("")}</div>${recent.length?`<div class="section-title"><h3>تقدّمك المحفوظ</h3></div><div class="stack">${recent.map(s=>`<button class="card simulation-choice" data-action="simulator.resume" data-id="${esc(s.id)}"><span class="grow"><strong>${esc(catalog.scenarios.find(c=>c.id===s.kind)?.title||s.kind)}</strong><small>${s.completed?`مكتمل — نتيجة المحاولة الأولى ${s.score}%`:"متابعة الجلسة"}</small></span>${icon("arrow",18)}</button>`).join("")}</div>`:""}`,"المحاكاة");
+    return;
+  }
+  const q=active.question;
+  const answer=q?.kind==="choice"?`<label class="field"><span>إجابتك</span><select name="answer" required><option value="">اختر الإجابة</option>${q.choices.map(c=>`<option value="${esc(c.id)}">${esc(c.text)}</option>`).join("")}</select></label>`:q?`<label class="field"><span>${q.kind==="money"?"المبلغ بوحدة التدريب":"الكمية"}</span><input name="answer" type="number" inputmode="decimal" min="0" max="100000000" step="0.01" required autocomplete="off"></label>`:"";
+  frame(`<section class="intro"><h1>${esc(active.title)}</h1><p>${active.completed?"أكملت المحاكاة":"الخطوة "+(active.step+1)+" من "+active.totalSteps} · ${esc(levels.find(l=>l[0]===active.difficulty)?.[1]||"")}</p></section><div class="notice">بيانات افتراضية مستقلة عن حسابات المتجر.</div><div class="card simulation-givens">${active.givens.map(g=>`<div class="summary-line"><span>${esc(g.label)}</span><strong>${esc(g.text)}</strong></div>`).join("")}</div>${active.feedback?`<p class="notice ${active.lastCorrect?"":"error"}" role="status">${esc(active.feedback)}</p>`:""}${q?`<section class="card"><form data-form="simulator.answer"><h2>${esc(q.text)}</h2>${answer}<button class="btn full" type="submit">تحقق من الإجابة</button></form><details style="margin-top:14px"><summary>تلميح</summary><p class="section-hint">${esc(q.hint)}</p></details></section>`:`<section class="card simulation-result"><span class="medallion">${icon("check")}</span><h2>أحسنت، اكتملت الجلسة</h2><strong>${active.score}%</strong><p>إجابات صحيحة من المحاولة الأولى: ${active.firstTryCorrect} من ${active.totalSteps}</p><p class="section-hint">يمكنك تجربة سيناريو جديد أو سؤال المدرب عن الخطوات.</p></section>`}<div class="stack" style="margin-top:18px">${btn("اسأل المدرب الذكي عن هذه الخطوة","simulator.coach","btn full","robot")}${btn("اختيار سيناريو آخر","simulator.list","btn outline full","book")}</div>`,"المحاكاة");
 }
 const lessons = [
   [
@@ -1119,6 +1149,20 @@ async function navigateGuide(step) {
   await go(lessons[step][2], true);
 }
 const actions = {
+  "simulator.back": () => go("simulator"),
+  "simulator.start": async element => {
+    simulation.active = await rpc("simulator.start", { kind: element.dataset.kind, difficulty: num($("#simulation-level").value) });
+    resetAiSession(true); context.simulationId=simulation.active.id;
+    await go("simulator",true);
+  },
+  "simulator.resume": async element => {
+    simulation.active = await rpc("simulator.get", {id:element.dataset.id});
+    resetAiSession(true);context.simulationId=simulation.active.id;
+    await go("simulator",true);
+  },
+  "simulator.list": async () => { resetAiSession(); await go("simulator",true); },
+  "simulator.coach": async () => { if(simulation.active) context.simulationId=simulation.active.id; resetAiSession(true); await go("assistant",true); },
+  "assistant.store": async () => { await rpc("ai.cancel"); resetAiSession(); await go("assistant",true); },
   "ai.download": () => rpc("ai.download"),
   "ai.import": async () => {
     if (await rpc("ai.import")) {
@@ -1425,6 +1469,14 @@ document.addEventListener("submit", (event) => {
   }
   work(async () => {
     switch (form.dataset.form) {
+      case "simulator.answer": {
+        const active=simulation.active;
+        if(!active) throw Error("ابدأ جلسة تدريب أولاً.");
+        simulation.active=await rpc("simulator.answer",{id:active.id,step:active.step,answer:active.question.kind==="choice"?v.answer:num(v.answer),requestId:uuid()});
+        resetAiSession(true);
+        simulatorView();
+        break;
+      }
       case "login":
         await rpc("login", {
           name: v.name,

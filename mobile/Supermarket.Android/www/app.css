@@ -1643,6 +1643,23 @@ dialog h2 {
     transform: rotate(360deg);
   }
 }
+.simulation-choice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  color: var(--ink, #102e56);
+  text-align: right;
+  font: inherit;
+}
+.simulation-choice > span:nth-child(2) { flex: 1; min-width: 0; }
+.simulation-choice strong, .simulation-choice small { display: block; }
+.simulation-choice small { font-size: 12px; line-height: 1.8; color: #6e86a0; margin-top: 5px; }
+.simulation-givens { margin: 18px 0; }
+.simulation-givens .summary-line { gap: 12px; flex-wrap: wrap; }
+.simulation-result { text-align: center; }
+.simulation-result > strong { display: block; font-size: 42px; color: #008de5; margin: 12px; }
+.simulation-result p { line-height: 1.9; }
 @keyframes loading {
   from {
     transform: translateX(100%);

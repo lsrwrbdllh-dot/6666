@@ -113,6 +113,11 @@ public sealed partial class MainPage
         await requests.WaitAsync();
         try
         {
+            if (args.TryGetProperty("simulationId", out var practice) && practice.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(practice.GetString()))
+            {
+                var context = JsonSerializer.SerializeToElement(simulator.Facts(SimulatorOwner(), practice.GetString()!), Store.Json);
+                return (context, Volatile.Read(ref aiEpoch), true, aiContext.Token);
+            }
             var facts = JsonSerializer.SerializeToElement(Current.Execute("assistant.facts", args), Store.Json);
             return (facts, Volatile.Read(ref aiEpoch), training is not null, aiContext.Token);
         }

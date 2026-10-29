@@ -93,6 +93,22 @@ def main():
         assert result['ms']<5000 and result['cash']==98000,result
         assert result['reply']['stopped'],result
         print('PASS cancellation and responsive financial read while native AI generates')
+        # Ground the same native model in an isolated employee exercise. These
+        # facts must come from the simulator, never from the live store ledger.
+        practice=evaluate("rpc('simulator.start',{kind:'credit-sale',difficulty:1})")
+        result=evaluate("rpc('ai.ask',{question:'اشرح نوع العملية المناسب لهذا التمرين بالعربية باختصار.',simulationId:"+json.dumps(practice['id'])+"})")
+        assert result['training'] and result['facts']['simulation'],result
+        assert result['facts']['simulationId']==practice['id'],result
+        assert 'cash' not in result['facts'] and 'sales' not in result['facts'],result
+        assert re.search(r'[\u0621-\u064a]',result['answer']) and not result['stopped'],result
+        (out/'training-answer.json').write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')
+        print('PASS actual native Arabic coaching with isolated simulator facts')
+        # A session change cancels even a generation queued before model loading.
+        stopped=evaluate("(async()=>{const p=rpc('ai.ask',{question:'اشرح قواعد المحاسبة بالتفصيل',simulationId:"+json.dumps(practice['id'])+"}).then(x=>({ok:true,data:x}),e=>({ok:false,error:e.message}));await new Promise(r=>setTimeout(r,200));await rpc('logout');return await p})()")
+        assert not stopped['ok'] or stopped['data']['stopped'],stopped
+        evaluate("rpc('login',{name:'Owner',pin:'123456'})")
+        assert evaluate("rpc('dashboard')")['cash']==98000
+        print('PASS logout cancels native generation and keeps financial data intact')
         assert len(evaluate("rpc('documents')"))==3,'AI changed financial documents'
         print('PASS model answers do not create financial documents')
         print('ALL ANDROID AI CHECKS PASSED')
