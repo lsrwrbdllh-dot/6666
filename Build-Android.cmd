@@ -7,6 +7,10 @@ if errorlevel 1 (
  popd
  exit /b 1
 )
+if not exist artifacts\ai-native\arm64-v8a\libllama.so (
+ echo First prepare the native AI libraries on Linux or CI. Read mobile/README.md.
+ goto failed
+)
 dotnet run --project tests/Madar.OfflineChecks -c Release
 if errorlevel 1 goto failed
 dotnet publish mobile/Supermarket.Android -c Release -r android-arm64 -p:AndroidPackageFormats=apk

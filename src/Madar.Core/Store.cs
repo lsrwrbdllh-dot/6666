@@ -81,6 +81,7 @@ public sealed partial class Store : IDisposable
                     "invoice.total" => InvoiceTotal(input),
                     "reports" => Reports(input),
                     "assistant" => Assistant(Str(input, "question")),
+                    "assistant.facts" => AssistantFacts(input),
                     "shifts" => Query("SELECT * FROM Shifts ORDER BY Id DESC LIMIT 100"),
                     "warehouses" => Query("SELECT * FROM Warehouses ORDER BY Id"),
                     "users" => OwnerRead("SELECT Id,Name,Role,Enabled FROM Users ORDER BY Id"),

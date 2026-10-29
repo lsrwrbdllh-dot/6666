@@ -51,6 +51,8 @@ try
     Check(Number("invoice.post", saleInput) == sale && Stock(milk) == 17_000 && Cash() == 98_500, "repeated request does not duplicate inventory or money");
     Check(Call("dashboard").GetProperty("sales").GetInt64() == 1500, "daily totals use Gregorian storage regardless of device culture");
     var profit = Call("reports", new { kind = "profit" })[0];
+    var facts = Call("assistant.facts", new { days = 30 });
+    Check(facts.GetProperty("cash").GetInt64() == Cash() && facts.GetProperty("sales").GetInt64() == 1500 && facts.GetProperty("netProfit").GetInt64() == 600, "assistant facts use posted ledger totals without model arithmetic");
     Check(profit.GetProperty("cost").GetInt64() == 900 && profit.GetProperty("profit").GetInt64() == 600, "weighted inventory cost and sale profit are recorded");
     Reject("invoice.post", Invoice("Sale", [Line(baseUnit, 1, 5), Line(baseUnit, 100, 5)]), "failure on a later line rolls back earlier stock consumption");
     Check(Stock(milk) == 17_000 && Cash() == 98_500, "failed invoice leaves both cash and stock unchanged");

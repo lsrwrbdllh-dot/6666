@@ -1060,6 +1060,28 @@ dialog h2 {
   line-height: 2;
   font-size: 14px;
 }
+.ai-form {
+  margin: 18px 0;
+}
+.ai-response,
+.ai-facts,
+.ai-guidance {
+  margin-top: 14px;
+}
+.ai-response .assistant-answer {
+  margin: 13px 0;
+  min-height: 50px;
+}
+.ai-setup summary,
+.ai-facts summary,
+.ai-guidance summary {
+  cursor: pointer;
+  padding: 5px 0;
+  font-size: 13px;
+}
+.ai-guidance .notice + .notice {
+  margin-top: 8px;
+}
 .keyboard .bottom-nav {
   display: none;
 }

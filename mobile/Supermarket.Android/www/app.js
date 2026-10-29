@@ -77,6 +77,19 @@ let serial = 0,
   lastBack = 0,
   reportRows = [],
   reportType = "income";
+let aiState = {
+  info: null,
+  question: "",
+  answer: "",
+  error: "",
+  days: 30,
+  running: false,
+  requestId: 0,
+  facts: null,
+  model: "",
+  stopped: false,
+  epoch: 0,
+};
 let inventoryFilter = { search: "", warehouse: 0, category: "", low: false };
 const app = $("#app"),
   dialog = $("#modal");
@@ -125,13 +138,18 @@ function rpc(action, args = {}) {
       Error("تُفتح هذه الواجهة داخل تطبيق مدار سوفت لأندرويد."),
     );
   const id = ++serial;
+  if (action === "ai.ask") aiState.requestId = id;
   return new Promise((resolve, reject) => {
     const timer = setTimeout(
       () => {
         pending.delete(id);
         reject(Error("تأخرت العملية؛ تحقق من السجل قبل تكرار الحفظ."));
       },
-      action.startsWith("files.") ? 600000 : 45000,
+      action === "ai.ask"
+        ? 240000
+        : action.startsWith("files.") || action === "ai.import"
+          ? 600000
+          : 45000,
     );
     pending.set(id, { resolve, reject, timer });
     window.MadarNative.invoke(JSON.stringify({ id, action, args }));
@@ -250,7 +268,13 @@ async function initialize() {
   await go("home", true);
 }
 async function loadState() {
+  const previous = { user: S.user?.id, training: !!S.training };
   S = await rpc("state");
+  if (
+    previous.user &&
+    (previous.user !== S.user?.id || previous.training !== !!S.training)
+  )
+    resetAiSession();
   settings = Object.fromEntries(S.settings.map((s) => [s.key, s.value]));
   if (S.backupWarning) toast(S.backupWarning);
 }
@@ -338,6 +362,7 @@ async function go(next, force = false) {
       break;
     case "assistant":
       data = await rpc("assistant");
+      aiState.info = await rpc("ai.status");
       assistantView();
       break;
     case "training":
@@ -678,7 +703,7 @@ function moreView() {
       : []),
   ];
   frame(
-    `<section class="intro"><h1>كل ما تحتاجه</h1><p>${esc(S.user.name)} · ${esc({ Owner: "مدير", Cashier: "كاشير", Viewer: "عرض فقط" }[S.user.role])}</p></section><section class="card list-card">${rows.map(([id, title, sub, glyph]) => `<button class="menu-row" data-go="${id}"><span class="menu-icon">${icon(glyph)}</span><span><strong>${title}</strong><small>${sub}</small></span>${icon("arrow")}</button>`).join("")}<button class="menu-row danger-text" data-action="logout"><span class="menu-icon">${icon("logout")}</span><strong>تسجيل الخروج</strong>${icon("arrow")}</button></section><p class="section-hint" style="text-align:center;margin-top:24px">مدار سوفت 2.0 · بياناتك على هاتفك</p>`,
+    `<section class="intro"><h1>كل ما تحتاجه</h1><p>${esc(S.user.name)} · ${esc({ Owner: "مدير", Cashier: "كاشير", Viewer: "عرض فقط" }[S.user.role])}</p></section><section class="card list-card">${rows.map(([id, title, sub, glyph]) => `<button class="menu-row" data-go="${id}"><span class="menu-icon">${icon(glyph)}</span><span><strong>${title}</strong><small>${sub}</small></span>${icon("arrow")}</button>`).join("")}<button class="menu-row danger-text" data-action="logout"><span class="menu-icon">${icon("logout")}</span><strong>تسجيل الخروج</strong>${icon("arrow")}</button></section><p class="section-hint" style="text-align:center;margin-top:24px">مدار سوفت 2.1 · بياناتك على هاتفك</p>`,
   );
 }
 function settingsView() {
@@ -720,11 +745,96 @@ function shiftsView() {
     "الورديات",
   );
 }
+
+function resetAiSession() {
+  aiState.epoch++;
+  aiState.running = false;
+  aiState.answer = "";
+  aiState.question = "";
+  aiState.error = "";
+  aiState.facts = null;
+  aiState.stopped = false;
+}
 function assistantView() {
+  const info = aiState.info,
+    ready = info?.status?.ready;
+  const mb = Math.ceil((info?.recommended?.bytes || 484220320) / 1000000);
+  const setup = `<section class="card ai-setup"><div class="row"><span class="medallion">${icon("robot")}</span><div><h3>${ready ? esc(info.status.model.name) : "جهّز المساعد لمرة واحدة"}</h3><p class="small muted">${info?.device ? esc(info.device) + " · " : ""}${info?.memoryMb ? Number(info.memoryMb / 1024).toLocaleString("ar", { maximumFractionDigits: 1 }) + " غيغابايت ذاكرة" : "وضع خفيف للهاتف"}</p></div></div>${!ready ? `<p class="section-hint">نزّل ملف الذكاء (نحو ${mb} ميغابايت) من المتصفح، ثم اختر «استيراد النموذج». بعد ذلك تعمل المحادثة دون إنترنت أو كمبيوتر أو اشتراك.</p><div class="stack">${btn("تنزيل ملف الذكاء", "ai.download", "btn full", "download")}${owner() ? btn("استيراد النموذج GGUF", "ai.import", "btn outline full", "folder") : "<p class='section-hint'>يجهّز مدير التطبيق النموذج أولاً، ثم يستطيع الموظفون استخدامه.</p>"}</div>` : `<p class="section-hint">النموذج جاهز على هاتفك. لا تُرسل الأسئلة أو أرقام المتجر إلى خادم.</p><details><summary>إدارة ملف الذكاء</summary><div class="stack" style="margin-top:12px">${btn("تنزيل الملف مجدداً", "ai.download", "btn light full", "download")}${owner() ? btn("استبدال ملف النموذج", "ai.import", "btn outline full", "folder") + btn("حذف النموذج من الهاتف", "ai.remove", "btn danger full", "trash") : ""}</div><p class="section-hint">ملف الذكاء منفصل عن بيانات المتجر والنسخة الاحتياطية.</p></details>`}</section>`;
   frame(
-    `<section class="intro"><h1>المساعد المحلي</h1><p>شرح وتنبيهات من بيانات متجرك</p></section><form data-form="assistant"><label class="field"><textarea name="question" placeholder="مثال: كيف أحسب الربح؟ أو كيف أسجّل التحصيل؟" maxlength="500" required></textarea></label>${saveButton("اسأل المساعد")}</form><section class="card" style="margin-top:18px"><p class="assistant-answer">${esc(data.answer)}</p></section>${data.alerts?.length ? `<div class="section-title"><h3>تحتاج مراجعتك</h3></div><div class="stack">${data.alerts.map((a) => `<div class="notice">${esc(a)}</div>`).join("")}</div>` : ""}<p class="section-hint">${esc(data.engine)}${S.deviceMemoryMb ? " ذاكرة الجهاز: " + Number(S.deviceMemoryMb / 1024).toLocaleString("ar", { maximumFractionDigits: 1 }) + " غيغابايت." : ""}</p>`,
+    `<section class="intro"><h1>المساعد الذكي المحلي</h1><p>اسأل بالعربية عن بياناتك أو المحاسبة الأساسية</p></section>${setup}${
+      ready
+        ? `<form class="ai-form" data-form="assistant.ai"><label class="field"><span>الفترة للأرقام المرجعية</span><select name="days" ${aiState.running ? "disabled" : ""}>${[
+            [1, "اليوم"],
+            [7, "آخر 7 أيام"],
+            [30, "آخر 30 يوماً"],
+          ]
+            .map(
+              ([id, label]) =>
+                `<option value="${id}" ${id === aiState.days ? "selected" : ""}>${label}</option>`,
+            )
+            .join(
+              "",
+            )}</select></label><label class="field"><textarea name="question" placeholder="مثال: كم رصيد الصندوق؟ وما الفرق بين الربح والمبيعات؟" maxlength="400" required ${aiState.running ? "disabled" : ""}>${esc(aiState.question)}</textarea></label><div class="row"><button class="btn grow" type="submit" ${aiState.running ? "disabled" : ""}>${icon("robot", 18)}${aiState.running ? "جارٍ إعداد الرد…" : "اسأل المساعد"}</button>${aiState.running ? btn("إيقاف", "ai.cancel", "btn outline", "close") : ""}</div></form>`
+        : ""
+    }${aiState.error ? `<p class="notice error" role="alert">${esc(aiState.error)}</p>` : ""}${aiState.running || aiState.answer || aiState.stopped ? `<section class="card ai-response"><div class="row between"><h3>الرد</h3><span class="pill">${aiState.running ? "على هاتفك…" : aiState.stopped ? "توقف الرد" : "ذكاء محلي"}</span></div><p id="ai-answer" class="assistant-answer" aria-live="polite">${esc(aiState.answer || "يُحمّل النموذج ويقرأ ملخص الأرقام…")}</p>${aiState.model ? `<small class="muted">${esc(aiState.model)}</small>` : ""}</section>` : ""}${
+      aiState.facts
+        ? `<details class="card ai-facts"><summary>الأرقام المرجعية عند بدء السؤال</summary><p class="section-hint">${esc(aiState.facts.from)} — ${esc(aiState.facts.to)}</p>${[
+            ["المبيعات", aiState.facts.sales],
+            ["صافي الربح", aiState.facts.netProfit],
+            ["رصيد الصندوق", aiState.facts.cash],
+          ]
+            .map(
+              ([label, value]) =>
+                `<div class="summary-line"><span>${label}</span><strong>${money(value)}</strong></div>`,
+            )
+            .join("")}</details>`
+        : ""
+    }<p class="section-hint">المساعد يشرح ويقترح؛ حفظ الفواتير واعتمادها من شاشات البرنامج بعد مراجعتك. قد يخطئ النموذج الصغير، وتبقى أرقام التقارير هي المرجع.</p><details class="card ai-guidance"><summary>تنبيهات البرنامج وإرشادات البدء</summary><p class="section-hint">${esc(data.answer || "")}</p>${data.alerts?.map((a) => `<p class="notice">${esc(a)}</p>`).join("") || '<p class="section-hint">لا توجد تنبيهات مراجعة حالياً.</p>'}</details>`,
     "المساعد",
   );
+}
+window.madarAiToken = ({ id, text }) => {
+  if (!aiState.running || aiState.requestId !== id) return;
+  aiState.answer = text;
+  if (route === "assistant" && $("#ai-answer"))
+    $("#ai-answer").textContent = text || "جارٍ إعداد الرد…";
+};
+async function askLocalAi(values) {
+  if (aiState.running) return;
+  aiState.question = String(values.question || "").trim();
+  aiState.days = Number(values.days) || 30;
+  aiState.answer = "";
+  aiState.error = "";
+  aiState.facts = null;
+  aiState.running = true;
+  aiState.stopped = false;
+  const epoch = ++aiState.epoch,
+    user = S.user?.id,
+    sandbox = !!S.training;
+  assistantView();
+  try {
+    const result = await rpc("ai.ask", {
+      question: aiState.question,
+      days: aiState.days,
+    });
+    if (
+      aiState.epoch !== epoch ||
+      S.user?.id !== user ||
+      !!S.training !== sandbox
+    )
+      return;
+    aiState.answer = result.answer;
+    aiState.facts = result.facts;
+    aiState.model = result.model;
+    aiState.stopped = result.stopped;
+  } catch (error) {
+    if (aiState.epoch === epoch) aiState.error = error.message;
+  } finally {
+    if (aiState.epoch === epoch) {
+      aiState.running = false;
+      if (route === "assistant") assistantView();
+    }
+  }
 }
 const lessons = [
   [
@@ -1009,6 +1119,30 @@ async function navigateGuide(step) {
   await go(lessons[step][2], true);
 }
 const actions = {
+  "ai.download": () => rpc("ai.download"),
+  "ai.import": async () => {
+    if (await rpc("ai.import")) {
+      aiState.info = await rpc("ai.status");
+      if (route === "assistant") assistantView();
+      toast("اكتمل التحقق من النموذج وتجهيزه على الهاتف");
+    }
+  },
+  "ai.remove": async () => {
+    if (
+      await confirm(
+        "حذف ملف الذكاء",
+        "يمكن تنزيله مجدداً. بيانات المتجر محفوظة بشكل منفصل. هل تريد الحذف؟",
+      )
+    ) {
+      await rpc("ai.remove");
+      aiState.info = await rpc("ai.status");
+      aiState.answer = "";
+      aiState.facts = null;
+      if (route === "assistant") assistantView();
+    }
+  },
+  "ai.cancel": () => rpc("ai.cancel"),
+
   "modal.close": () => closeModal(),
   "confirm.yes": () => {
     const resolve = confirmResolve;
@@ -1025,6 +1159,7 @@ const actions = {
       ))
     )
       return;
+    resetAiSession();
     await rpc("logout");
     guideStep = -1;
     invoice = null;
@@ -1170,6 +1305,7 @@ const actions = {
     )
       return;
     if (await rpc("files.restore")) {
+      resetAiSession();
       guideStep = -1;
       await initialize();
       toast("اكتملت الاستعادة. سجّل الدخول ببيانات النسخة المستعادة.");
@@ -1283,6 +1419,10 @@ document.addEventListener("submit", (event) => {
   if (!form.dataset.form) return;
   event.preventDefault();
   const v = Object.fromEntries(new FormData(form));
+  if (form.dataset.form === "assistant.ai") {
+    void askLocalAi(v);
+    return;
+  }
   work(async () => {
     switch (form.dataset.form) {
       case "login":

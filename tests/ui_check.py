@@ -140,6 +140,12 @@ async def main(url):
             await page.locator('[data-go="reports"]').click()
             await page.get_by_role('heading',name='تقارير متجرك').wait_for()
             await capture('05-reports.png')
+            await page.locator('.bottom-nav [data-go="more"]').click()
+            await page.locator('.menu-row[data-go="assistant"]').click()
+            await page.get_by_role('heading',name='المساعد الذكي المحلي').wait_for()
+            await page.get_by_role('button',name='استيراد النموذج GGUF',exact=True).wait_for()
+            assert await page.get_by_role('button',name='اسأل المساعد',exact=True).count()==0, 'Missing model must not appear enabled'
+            await capture('06-assistant-setup.png')
             await page.set_viewport_size({'width':320,'height':740})
             for destination in ('home','inventory','sale'):
                 await page.locator(f'.bottom-nav [data-go="{destination}"]').click()

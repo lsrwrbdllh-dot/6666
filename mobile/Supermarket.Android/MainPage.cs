@@ -6,7 +6,7 @@ using Madar.Core;
 
 namespace Supermarket.AndroidApp;
 
-public sealed class MainPage : ContentPage
+public sealed partial class MainPage : ContentPage
 {
     private readonly Microsoft.Maui.Controls.WebView browser;
     private readonly Store production;
@@ -31,6 +31,9 @@ public sealed class MainPage : ContentPage
             native.Settings.AllowFileAccessFromFileURLs = false;
             native.Settings.AllowUniversalAccessFromFileURLs = false;
             native.AddJavascriptInterface(new LocalBridge(this), "MadarNative");
+#if DEBUG
+            Android.Webkit.WebView.SetWebContentsDebuggingEnabled(true);
+#endif
             browser.Source = "file:///android_asset/www/index.html";
         };
         browser.Navigating += (_, e) =>
@@ -55,6 +58,7 @@ public sealed class MainPage : ContentPage
     private async Task Process(string raw)
     {
         if (raw.Length > 2_000_000) return;
+        if (await TryProcessAi(raw)) return;
         long id = 0;
         await requests.WaitAsync();
         try
@@ -63,9 +67,11 @@ public sealed class MainPage : ContentPage
             id = request.RootElement.GetProperty("id").GetInt64();
             var action = request.RootElement.GetProperty("action").GetString() ?? "";
             var args = request.RootElement.GetProperty("args");
+            if (action is "logout" or "training.enter" or "training.exit" or "files.restore") CancelAiContext();
             object? result;
             switch (action)
             {
+                case "logout": training?.Dispose(); training = null; result = production.Execute("logout", args); break;
                 case "app.exit": await MainThread.InvokeOnMainThreadAsync(() => Platform.CurrentActivity?.Finish()); result = true; break;
                 case "training.enter":
                     production.Execute("state", JsonSerializer.SerializeToElement(new { }));
